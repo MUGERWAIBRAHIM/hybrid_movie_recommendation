@@ -5,7 +5,7 @@ import joblib
 import torch
 
 # 🔗 Your GitHub release zip URL
-ZIP_URL = "PASTE_YOUR_RELEASE_ZIP_LINK_HERE"
+ZIP_URL = "https://github.com/user-attachments/files/26870707/modelfileslens.zip"
 
 ZIP_PATH = "/tmp/models.zip"
 EXTRACT_PATH = "/tmp/models"
