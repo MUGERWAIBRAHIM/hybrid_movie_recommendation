@@ -1,0 +1,9 @@
+flask
+pandas
+numpy
+scikit-learn
+xgboost
+torch
+joblib
+requests
+scikit-surprise
