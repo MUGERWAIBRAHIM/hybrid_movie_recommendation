@@ -96,3 +96,41 @@ def load_models():
 
     models_loaded = True
     print("Models loaded successfully ✅")
+    
+def predict_score(user_id, movie_id):
+    # Ensure models are loaded
+    if not models_loaded:
+        load_models()
+
+    # Handle unknown users/movies safely
+    if user_id not in user_map or movie_id not in movie_map:
+        return 0
+
+    uid = user_map[user_id]
+    mid = movie_map[movie_id]
+
+    # 🎯 1. SVD++
+    svd_score = svdpp_model.predict(user_id, movie_id).est
+
+    # 🎯 2. Popularity
+    pop_score = popularity_dict.get(movie_id, 0)
+
+    # 🎯 3. Genre similarity (simple dot)
+    genre_score = 0
+    if user_id in user_profiles and movie_id in genre_matrix.index:
+        genre_score = (user_profiles[user_id] * genre_matrix.loc[movie_id]).sum()
+
+    # 🎯 4. NCF
+    user_tensor = torch.tensor([uid])
+    movie_tensor = torch.tensor([mid])
+    ncf_score = model(user_tensor, movie_tensor).item()
+
+    # 🎯 5. Combine (simple average or weighted)
+    final_score = (
+        0.4 * svd_score +
+        0.2 * pop_score +
+        0.2 * genre_score +
+        0.2 * ncf_score
+    )
+
+    return float(final_score)
