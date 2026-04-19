@@ -1,3 +1,4 @@
+import os
 from flask import Flask, request, jsonify
 from utils import *
 
@@ -27,4 +28,5 @@ def recommend():
     return jsonify({"user_id": user_id, "recommendations": top_movies})
 
 if __name__ == "__main__":
-    app.run()
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
