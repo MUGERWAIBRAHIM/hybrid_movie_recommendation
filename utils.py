@@ -1,32 +1,63 @@
 import os
 import requests
+import zipfile
 import joblib
 import torch
 
-MODEL_URLS = {
-    "svd": "YOUR_URL",
-    "xgb": "YOUR_URL",
-    "popularity": "YOUR_URL",
-    "genre_matrix": "YOUR_URL",
-    "user_profiles": "YOUR_URL",
-    "ncf": "YOUR_URL",
-    "user_map": "YOUR_URL",
-    "movie_map": "YOUR_URL"
-}
+# 🔗 Your GitHub release zip URL
+ZIP_URL = "PASTE_YOUR_RELEASE_ZIP_LINK_HERE"
 
-def download_model(name, url):
-    path = f"/tmp/{name}"
-    if not os.path.exists(path):
-        r = requests.get(url)
-        open(path, "wb").write(r.content)
-    return path
+ZIP_PATH = "/tmp/models.zip"
+EXTRACT_PATH = "/tmp/models"
 
-# Load models
-svdpp_model = joblib.load(download_model("svd.pkl", MODEL_URLS["svd"]))
-xgb_model = joblib.load(download_model("xgb.pkl", MODEL_URLS["xgb"]))
-popularity_dict = joblib.load(download_model("pop.pkl", MODEL_URLS["popularity"]))
-genre_matrix = joblib.load(download_model("genre.pkl", MODEL_URLS["genre_matrix"]))
-user_profiles = joblib.load(download_model("profiles.pkl", MODEL_URLS["user_profiles"]))
-ncf_model = joblib.load(download_model("ncf.pkl", MODEL_URLS["ncf"]))
-user_map = joblib.load(download_model("user_map.pkl", MODEL_URLS["user_map"]))
-movie_map = joblib.load(download_model("movie_map.pkl", MODEL_URLS["movie_map"]))
+def download_and_extract():
+    if not os.path.exists(EXTRACT_PATH):
+        os.makedirs(EXTRACT_PATH, exist_ok=True)
+        
+        print("Downloading models zip...")
+        r = requests.get(ZIP_URL)
+        with open(ZIP_PATH, "wb") as f:
+            f.write(r.content)
+        
+        print("Extracting...")
+        with zipfile.ZipFile(ZIP_PATH, 'r') as zip_ref:
+            zip_ref.extractall(EXTRACT_PATH)
+
+download_and_extract()
+
+# 📦 Load models
+svdpp_model = joblib.load(f"{EXTRACT_PATH}/svdpp_model.pkl")
+xgb_model = joblib.load(f"{EXTRACT_PATH}/xgb_model.pkl")
+popularity_dict = joblib.load(f"{EXTRACT_PATH}/popularity.pkl")
+genre_matrix = joblib.load(f"{EXTRACT_PATH}/genre_matrix.pkl")
+user_profiles = joblib.load(f"{EXTRACT_PATH}/user_profiles.pkl")
+
+# 🔁 NCF
+from torch import nn
+
+class NCF(nn.Module):
+    def __init__(self, num_users, num_movies, embedding_dim=32):
+        super(NCF, self).__init__()
+        self.user_embedding = nn.Embedding(num_users, embedding_dim)
+        self.movie_embedding = nn.Embedding(num_movies, embedding_dim)
+        self.fc = nn.Sequential(
+            nn.Linear(embedding_dim * 2, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, 1),
+            nn.Sigmoid()
+        )
+    def forward(self, user, movie):
+        u = self.user_embedding(user)
+        m = self.movie_embedding(movie)
+        x = torch.cat([u, m], dim=1)
+        return self.fc(x).squeeze()
+
+# Load mappings
+user_map = joblib.load(f"{EXTRACT_PATH}/user_map.pkl")
+movie_map = joblib.load(f"{EXTRACT_PATH}/movie_map.pkl")
+
+model = NCF(len(user_map), len(movie_map))
+model.load_state_dict(torch.load(f"{EXTRACT_PATH}/ncf_model.pt", map_location=torch.device('cpu')))
+model.eval()
