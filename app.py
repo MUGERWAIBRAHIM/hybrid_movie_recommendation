@@ -1,8 +1,15 @@
 import os
+import threading
 from flask import Flask, request, jsonify
-from utils import load_models, predict_score, genre_matrix
+from utils import load_models, predict_score, models_loaded, genre_matrix
 
 app = Flask(__name__)
+
+# 🔥 Load models in background (NON-BLOCKING)
+def background_load():
+    load_models()
+
+threading.Thread(target=background_load).start()
 
 
 @app.route("/")
@@ -12,8 +19,11 @@ def home():
 
 @app.route("/recommend")
 def recommend():
-    # 🔥 Ensure models are loaded
-    load_models()
+    # 🛑 If models not ready yet
+    if not models_loaded:
+        return jsonify({
+            "message": "Models are still loading, please try again shortly."
+        }), 503
 
     # 🛡️ Validate input
     user_id = request.args.get("user_id")
