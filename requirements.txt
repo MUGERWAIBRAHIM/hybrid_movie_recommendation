@@ -1,9 +1,3 @@
 flask
-pandas
-numpy==1.26.4
-scikit-learn
-xgboost
-torch
 joblib
-requests
-scikit-surprise
+pandas
